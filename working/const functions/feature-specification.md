@@ -99,16 +99,20 @@ yet exist.
 
 ## Usage Examples
 
-### `List<String> fieldsFieldNamesOf<T>()`
+### `List<Symbol> fieldNamesOf<T>()`
+
+The only difference between the following implementation and the one which
+works today is the `const` modifier on the function.
 
 ```dart
-const List<String> fieldsFieldNamesOf<T>() {
+import 'dart:mirrors';
+
+const List<Symbol> fieldNamesOf<T>() {
   var typeMirror = reflectClass(T);
   return [
-    for (var declaration in typeMirror.declarations)
-      if (declaration is VariableMirror && d.isFinal)
-        d.simpleName,
-  ]
+    for (var d in typeMirror.declarations.values)
+      if (d is VariableMirror && d.isFinal) d.simpleName,
+  ];
 }
 ```
 
@@ -116,7 +120,7 @@ Note that this function is itself const, which allows it to pass its type
 variables down to `reflectClass(T)`.
 
 Additionally, it can crawl all the declarations of `T`, but the only thing
-that ends up in the final program is the constant list of field names. We
+that ends up in the final program is the constant list of field symbols. We
 were not required to retain the other declarations or any other information
 about `T` even though we "used" it during the const creation.
 
