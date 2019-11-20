@@ -99,7 +99,7 @@ yet exist.
 
 ## Usage Examples
 
-### List<String> fieldsFieldNamesOf<T>()
+### `List<String> fieldsFieldNamesOf<T>()`
 
 ```dart
 const List<String> fieldsFieldNamesOf<T>() {
