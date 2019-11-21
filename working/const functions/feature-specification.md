@@ -130,3 +130,8 @@ functions. We could ban doing this, or we could redesign the apis to make the
 classes have less information in them, and add more top level apis instead
 (for instance, `declarationsOf(T)` instead of a `ClassMirror.declarations`
 field).
+
+### `Converter<String, T> jsonDecoder<T>()`
+
+See [json-decoder-example.dart](json-decoder-example.dart) for an
+implementation example of this api.
