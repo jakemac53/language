@@ -28,34 +28,33 @@ const Converter<String, T> jsonDecoder<T>([Map<Type, Config> typeConfig]) =>
     //
     // const _FusedConverter(JsonDecoder(), jsonConverter<T>(typeConfig));
 
-const Converter<Object, T> jsonConverter<T>(Map<Type, Config> typeConfig) =>
-    _jsonConverterForType<T>(T, typeConfig);
-
-const Converter<Object, T> _jsonConverterForType<T>(
-    Type type, Map<Type, Config> typeConfig) {
+const Converter<Object, T> jsonConverter<T>(Map<Type, Config> typeConfig) {
   /// TODO: Support maps, lists, etc
-  switch (type) {
+  switch (T) {
     case int:
-      return const CastConverter<int>() as Converter<Object, T>;
     case double:
-      return const CastConverter<double>() as Converter<Object, T>;
     case num:
-      return const CastConverter<num>() as Converter<Object, T>;
     case String:
-      return const CastConverter<String>() as Converter<Object, T>;
+      return const CastConverter<T>();
   }
 
-  var config = typeConfig[type] ?? const Config();
-  var invoker = _invokerFor<T>(type, config);
+  // TODO: Generics mess this up - the config map is keyed on the raw type
+  // with no type arguments. Extract that same raw type from T before the
+  // lookup.
+  var config = typeConfig[T] ?? const Config();
+  var invoker = _invokerFor<T>(config);
   var positionalArgumentConverters = [
     for (var i = 0; i < config.positionalParameterKeys.length; i++)
-      _jsonConverterForType<dynamic>(
-          invoker.method.parameters[i].type.reflectedType, typeConfig)
+      // TODO: specify this syntax, possibly change it. We need to be able
+      // to provide a constant Type instance as a type parameter (same
+      // below for named arg converters).
+      jsonConverter<invoker.method.parameters[i].type.reflectedType>(
+          typeConfig)
   ];
   var namedArgumentConverters = {
     for (var param in invoker.method.parameters.where((p) => p.isNamed))
       param.simpleName:
-          _jsonConverterForType<dynamic>(param.type.reflectedType, typeConfig)
+          jsonConverter<param.type.reflectedType>(typeConfig)
   };
 
   return JsonConverter<T>(
@@ -63,7 +62,7 @@ const Converter<Object, T> _jsonConverterForType<T>(
       config: config);
 }
 
-const Invoker<T> _invokerFor<T>(Type type, Config config) {
+const Invoker<T> _invokerFor<T>(Config config) {
   if (config.factory != null) {
     var methodMirror = reflect(config.factory) as MethodMirror;
     var namedParams = [
@@ -74,13 +73,13 @@ const Invoker<T> _invokerFor<T>(Type type, Config config) {
   }
 
   // TODO: Handle non-class types
-  var classMirror = reflectClass(type);
+  var classMirror = reflectClass(T);
   var constructorMirror = classMirror.declarations.values.firstWhere(
       (d) =>
           d is MethodMirror &&
           d.isConstructor &&
           d.simpleName == classMirror.simpleName,
-      orElse: () => throw 'No unnamed constructor for $type!') as MethodMirror;
+      orElse: () => throw 'No unnamed constructor for $T!') as MethodMirror;
 
   var namedParams = [
     for (var param in constructorMirror.parameters.where((p) => p.isNamed))
@@ -131,6 +130,11 @@ class JsonConverter<T> extends Converter<Object, T> {
 
 String _keyName(Symbol name, Map<Symbol, String> overrides) {
   var nameStr = name.toString();
+  // TODO: gross! Symbols really tie our hands here. The only way to get the
+  // original string value for the symbol is through this nasy hack.
+  //
+  // We should reconsider if symbols are providing any value here and changing
+  // the mirrors apis to be string based if not.
   nameStr = nameStr.substring(8, nameStr.length - 2);
   if (overrides == null) return nameStr;
   return overrides[name] ?? nameStr;
@@ -143,6 +147,12 @@ class CastConverter<T> extends Converter<Object, T> {
   T convert(Object input) => input as T;
 }
 
+/// TODO: Ideally we would not keep leak instances of any mirrors object
+/// outside of the const functions but all implementations of this violate
+/// that. How can we mitigate that?
+///
+/// TODO: We assume the MethodMirror can do efficient (static) dispatch,
+/// which todays mirrors does not do. Specify exactly how that should work.
 abstract class Invoker<T> {
   List<Symbol> get namedParameters;
   MethodMirror get method;
@@ -153,6 +163,7 @@ abstract class Invoker<T> {
 class ConstructorInvoker<T> implements Invoker<T> {
   final ClassMirror clazz;
   final MethodMirror method;
+
   final List<Symbol> namedParameters;
 
   const ConstructorInvoker(this.clazz, this.method, this.namedParameters);
