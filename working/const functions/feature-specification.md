@@ -28,8 +28,18 @@ functions:
 - All arguments (including type arguments) must be const
   - Except for invocations from other const functions
 - They can only invoke const functions
-- They can only read const variables
+- Only const references are allowed
 - They can only return const objects
+
+In addition to the unique ability to invoke other const functions with type
+parameters, const functions will also have the ability to pass instances of
+type Type as type arguments to other const functions.
+
+  - Note that since only const references are allowed within const functions,
+    these Type instances would always be const, which is what makes this
+    viable.
+
+## Treeshaking
 
 Constants which are only used as a part of a const function body but which are
 not ultimately referenced in the program _must be_ tree-shaken out. One
