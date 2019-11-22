@@ -5,26 +5,35 @@ class User {
   final String name;
   final int age;
   User(this.name, {this.age});
+
+  String toString() => '$name, age ${age == null ? 'unknown' : age}';
 }
 
 void main() {
-  var decoder = jsonDecoder<User>(const {User: Config(positionalParameterKeys: ['name'])});
+  var decoder = jsonDecoder<User>(const {
+    User: Config(positionalParameterKeys: ['name'])
+  });
   var user = decoder.convert('''
 {
   "name": "Jake",
   "age": 123456
 }
   ''');
+  print(user);
 }
 
 const Converter<String, T> jsonDecoder<T>([Map<Type, Config> typeConfig]) =>
     JsonDecoder().fuse(jsonConverter<T>(typeConfig));
+    // We need a const constructor for this, and a public class:
+    //
+    // const _FusedConverter(JsonDecoder(), jsonConverter<T>(typeConfig));
 
 const Converter<Object, T> jsonConverter<T>(Map<Type, Config> typeConfig) =>
     _jsonConverterForType<T>(T, typeConfig);
 
 const Converter<Object, T> _jsonConverterForType<T>(
     Type type, Map<Type, Config> typeConfig) {
+  /// TODO: Support maps, lists, etc
   switch (type) {
     case int:
       return const CastConverter<int>() as Converter<Object, T>;
